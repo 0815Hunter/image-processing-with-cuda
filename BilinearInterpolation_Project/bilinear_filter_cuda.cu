@@ -4,6 +4,24 @@
 #include "bilinear_filter_cuda.cuh"
 #include "imageutil.h"
 
+
+typedef struct dimensions_def
+{
+	png_uint_32 source_image_width;
+	png_uint_32 image_to_scale_width;
+	png_uint_32 image_to_scale_height;
+}dimensions;
+
+typedef struct FillParams_def
+{
+	PixelPrecalculation* x_precalculation;
+	PixelPrecalculation* y_precalculation;
+	png_bytep source_bytes_sequential_p;
+	png_bytep image_to_scale_bytes_sequential_p;
+	dimensions *dimensions_inf_p;
+	
+}FillParams;
+
 PixelPrecalculation* create_pixel_precalculation_for_x_row_cuda(unsigned int old_width, unsigned int new_width);
 
 PixelPrecalculation* create_pixel_precalculation_for_y_row_cuda(unsigned int old_height, unsigned int new_height);
@@ -11,6 +29,48 @@ PixelPrecalculation* create_pixel_precalculation_for_y_row_cuda(unsigned int old
 PixelPrecalculation* create_pixel_precalculation_cuda(unsigned int old_pixel_array_size, unsigned int new_pixel_array_size);
 
 __device__ void precalc(PixelPrecalculation* precalculation, const float pixel_weight_increment);
+
+__global__ void fill_image_to_scale_cuda1(FillParams* params)
+{
+	auto x = blockIdx.x * blockDim.x + threadIdx.x;
+	auto y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if ((x >= params->dimensions_inf_p->image_to_scale_width) || (y >= params->dimensions_inf_p->image_to_scale_height))
+	{
+		return;
+	}
+
+	auto y_pixel_front = params->y_precalculation[y].frontPixel;
+	auto y_pixel_rear = params->y_precalculation[y].rearPixel;
+	auto y_front_weight = params->y_precalculation[y].frontWeight;
+	auto y_rear_weight = params->y_precalculation[y].rearWeight;
+
+	auto x_pixel_front = params->x_precalculation[x].frontPixel;
+	auto x_pixel_rear = params->x_precalculation[x].rearPixel;
+	auto x_front_weight = params->x_precalculation[x].frontWeight;
+	auto x_rear_weight = params->x_precalculation[x].rearWeight;
+
+	auto base_upper_row = y_pixel_front * params->dimensions_inf_p->source_image_width;
+	auto p_00_index = base_upper_row + x_pixel_front;
+	auto p_01_index = base_upper_row + x_pixel_rear;
+
+	auto base_lower_row = y_pixel_rear * params->dimensions_inf_p->source_image_width;
+	auto p_10_index = base_lower_row + x_pixel_front;
+	auto p_11_index = base_lower_row + x_pixel_rear;
+
+
+	auto source_bytes = params->source_bytes_sequential_p;
+
+	png_byte point_00_01_value = source_bytes[p_00_index] * x_front_weight + source_bytes[p_01_index] * x_rear_weight;
+	png_byte point_10_11_value = source_bytes[p_10_index] * x_front_weight + source_bytes[p_11_index] * x_rear_weight;
+
+	png_byte pixel_p_value = point_00_01_value * y_front_weight + point_10_11_value * y_rear_weight;
+
+	auto i = y * params->dimensions_inf_p->image_to_scale_width + x;
+
+	params->image_to_scale_bytes_sequential_p[i] = pixel_p_value;
+
+}
 
 __global__ void pixel_precalculation_gpu(PixelPrecalculation* precalculation, const float pixel_weight_increment)
 {
@@ -36,7 +96,7 @@ __device__ void precalc(PixelPrecalculation *precalculation, const float pixel_w
 }
 
 
-void fill_image_to_scale_cuda(png_user_struct* image_to_scale, png_user_struct* source_image, PixelPrecalculation* x_pixel_precalculation_ptr, PixelPrecalculation* y_pixel_precalculation_ptr);
+void fill_image_to_scale_cuda(png_user_struct* image_to_scale, png_user_struct* source_image, PixelPrecalculation* d_x_pixel_precalculation_ptr, PixelPrecalculation* d_y_pixel_precalculation_ptr);
 
 
 void scale_bilinear_cuda(png_user_struct* source_image, png_user_struct* image_to_scale)
@@ -46,14 +106,14 @@ void scale_bilinear_cuda(png_user_struct* source_image, png_user_struct* image_t
 	const auto old_width = source_image->image_info.width;
 	const auto new_width = image_to_scale->image_info.width;
 
-	auto x_pixel_precalculation_ptr = create_pixel_precalculation_for_x_row_cuda(old_width, new_width);
+	auto d_x_pixel_precalculation_ptr = create_pixel_precalculation_for_x_row_cuda(old_width, new_width);
+	
+	auto d_y_pixel_precalculation_ptr = create_pixel_precalculation_for_y_row_cuda(old_height, new_height);
 
-	auto y_pixel_precalculation_ptr = create_pixel_precalculation_for_y_row_cuda(old_height, new_height);
+	fill_image_to_scale_cuda(image_to_scale, source_image, d_x_pixel_precalculation_ptr, d_y_pixel_precalculation_ptr);
 
-	fill_image_to_scale_cuda(image_to_scale, source_image, x_pixel_precalculation_ptr, y_pixel_precalculation_ptr);
-
-	free(x_pixel_precalculation_ptr);
-	free(y_pixel_precalculation_ptr);
+	cudaFree(d_x_pixel_precalculation_ptr);
+	cudaFree(d_y_pixel_precalculation_ptr);
 
 	printf("Hoarray");
 }
@@ -71,16 +131,13 @@ PixelPrecalculation* create_pixel_precalculation_for_y_row_cuda(const unsigned i
 PixelPrecalculation* create_pixel_precalculation_cuda(const unsigned int old_pixel_array_size,
 	const unsigned int new_pixel_array_size)
 {
-	PixelPrecalculation* h_pixel_precalculation_for_x_rows = (PixelPrecalculation*)malloc(
-		sizeof(PixelPrecalculation) * new_pixel_array_size);
 
 
 	PixelPrecalculation* d_pixel_precalculation_for_x_rows;
+	
 
 	cudaMalloc(reinterpret_cast<void**>(&d_pixel_precalculation_for_x_rows), sizeof(PixelPrecalculation) * new_pixel_array_size);
 
-
-	cudaMemcpy(d_pixel_precalculation_for_x_rows, h_pixel_precalculation_for_x_rows, sizeof(PixelPrecalculation) * new_pixel_array_size, cudaMemcpyHostToDevice);
 	
 
 	//old_pixel_array_size - 1, the last pixel is (old_pixel_array_size - 1)
@@ -89,51 +146,77 @@ PixelPrecalculation* create_pixel_precalculation_cuda(const unsigned int old_pix
 
 	pixel_precalculation_gpu <<< 1, new_pixel_array_size >>> (d_pixel_precalculation_for_x_rows, pixel_weight_increment);
 
-	cudaMemcpy(h_pixel_precalculation_for_x_rows, d_pixel_precalculation_for_x_rows, sizeof(PixelPrecalculation) * new_pixel_array_size, cudaMemcpyDeviceToHost);
-
-	return h_pixel_precalculation_for_x_rows;
+	return d_pixel_precalculation_for_x_rows;
 }
 
 
-void fill_image_to_scale_cuda(png_user_struct* image_to_scale, png_user_struct* source_image, PixelPrecalculation* x_pixel_precalculation_ptr,
-	PixelPrecalculation* y_pixel_precalculation_ptr)
+void fill_image_to_scale_cuda(png_user_struct* image_to_scale, png_user_struct* source_image, PixelPrecalculation* d_x_pixel_precalculation_ptr,
+	PixelPrecalculation* d_y_pixel_precalculation_ptr)
 {
+	auto source_png_bytes_size = sizeof(png_byte) * source_image->image_info.width * source_image->image_info.height;
+	
+	png_bytep png_row_col_p = static_cast<png_bytep>(malloc(source_png_bytes_size) );
 
-	for (png_uint_32 y = 0; y < image_to_scale->image_info.height; y++)
+	png_bytep png_row_col_p_it = png_row_col_p;
+
+	//h_png_source_image_bytepp: liegen die bytes nicht alle ab h_png_source_image_bytepp[0]
+	for (png_uint_32 y = 0; y < source_image->image_info.height;y++)
 	{
-		auto y_pixel_front = y_pixel_precalculation_ptr[y].frontPixel;
-		auto y_pixel_rear = y_pixel_precalculation_ptr[y].rearPixel;
-		auto y_front_weight = y_pixel_precalculation_ptr[y].frontWeight;
-		auto y_rear_weight = y_pixel_precalculation_ptr[y].rearWeight;
-
-		auto* png_source_image_bytepp = source_image->png_rows;
-
-		auto png_row_bytes = source_image->png_row_bytes;
-
-
-
-		//only black/white pictures atm!
-		if (png_row_bytes != source_image->image_info.width)
+		for(png_uint_32 x = 0; x < source_image->image_info.width; x++)
 		{
-			// ReSharper disable once StringLiteralTypo
-			printf("Rowbytes !=source image width");
-		}
-
-		for (png_uint_32 x = 0; x < image_to_scale->image_info.width; x++)
-		{
-			auto x_pixel_front = x_pixel_precalculation_ptr[x].frontPixel;
-			auto x_pixel_rear = x_pixel_precalculation_ptr[x].rearPixel;
-			auto x_front_weight = x_pixel_precalculation_ptr[x].frontWeight;
-			auto x_rear_weight = x_pixel_precalculation_ptr[x].rearWeight;
-
-			png_byte point_00_01_value = png_source_image_bytepp[y_pixel_front][x_pixel_front] * x_front_weight + png_source_image_bytepp[y_pixel_front][x_pixel_rear] * x_rear_weight;
-			png_byte point_10_11_value = png_source_image_bytepp[y_pixel_rear][x_pixel_front] * x_front_weight + png_source_image_bytepp[y_pixel_rear][x_pixel_rear] * x_rear_weight;
-
-			png_byte pixel_p_value = point_00_01_value * y_front_weight + point_10_11_value * y_rear_weight;
-
-			image_to_scale->png_rows[y][x] = pixel_p_value;
-
+			*png_row_col_p_it = source_image->png_rows[y][x];
+			png_row_col_p_it++;
 		}
 	}
 
+
+	FillParams d_params;
+	FillParams *d_params_p = &d_params;
+
+	d_params.x_precalculation = d_x_pixel_precalculation_ptr;
+	d_params.y_precalculation = d_y_pixel_precalculation_ptr;
+	
+	auto image_to_scale_bytes_size = sizeof(png_byte) * image_to_scale->image_info.width * image_to_scale->image_info.height;
+	cudaMalloc(reinterpret_cast<void**>(&d_params_p->image_to_scale_bytes_sequential_p), image_to_scale_bytes_size);
+	
+	
+	cudaMalloc(reinterpret_cast<void**>(&d_params_p->source_bytes_sequential_p), source_png_bytes_size);
+	cudaMemcpy(d_params_p->source_bytes_sequential_p, png_row_col_p, source_png_bytes_size, cudaMemcpyHostToDevice);
+
+
+	
+	dimensions *h_dimensions_inf_p = static_cast<dimensions *>(malloc(sizeof(dimensions)));
+	h_dimensions_inf_p->image_to_scale_width = image_to_scale->image_info.width;
+	h_dimensions_inf_p->image_to_scale_height = image_to_scale->image_info.height;
+	h_dimensions_inf_p->source_image_width = source_image->image_info.width;
+
+	
+	cudaMalloc(reinterpret_cast<void**>(&d_params_p->dimensions_inf_p), sizeof(dimensions));
+	cudaMemcpy(d_params_p->dimensions_inf_p, h_dimensions_inf_p, sizeof(dimensions), cudaMemcpyHostToDevice);
+
+	auto d_image_to_scale_bytes_sequential_p = d_params_p->image_to_scale_bytes_sequential_p;
+	
+	cudaMalloc(reinterpret_cast<void**>(&d_params_p), sizeof(FillParams));
+	cudaMemcpy(d_params_p, &d_params, sizeof(FillParams), cudaMemcpyHostToDevice);
+	
+	dim3 blockSize(32, 32);
+
+	auto bx = (image_to_scale->image_info.width + blockSize.x - 1) / blockSize.x;
+	
+	auto by = (image_to_scale->image_info.height  + blockSize.y - 1) / blockSize.y;
+
+	dim3 gridSize = dim3(bx, by);
+
+	fill_image_to_scale_cuda1 << <gridSize, blockSize >> > (d_params_p);
+
+
+	png_bytep png_scaled_bytes_sequential_p = static_cast<png_bytep>(malloc(image_to_scale_bytes_size));
+
+	cudaMemcpy(png_scaled_bytes_sequential_p, d_image_to_scale_bytes_sequential_p, image_to_scale_bytes_size, cudaMemcpyDeviceToHost);
+
+
+	for(png_uint_32 y = 0; y < image_to_scale->image_info.height; y++)
+	{
+		image_to_scale->png_rows[y] = &png_scaled_bytes_sequential_p[y * image_to_scale->image_info.width];
+	}
 }

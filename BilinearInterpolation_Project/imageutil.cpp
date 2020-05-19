@@ -38,8 +38,6 @@ png_user_struct *get_image(const char *fileName) {
 
     set_image_info_from_png(image_ptr);
     set_image_row_info(image_ptr);
-	
-    //png_data_freer(image_ptr->png_ptr, image_ptr->png_info_ptr)
 
     return image_ptr;
 
