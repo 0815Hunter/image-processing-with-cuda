@@ -1,15 +1,15 @@
 #include <cstdlib>
 
-#include "bilinear_filter_cuda.cuh"
+#include "bilinear_filter_cuda_streams.cuh"
 
 #include "cuda_includes.h"
 #include "common_structs.h"
 #include "cuda_kernels.cuh"
 
-namespace cuda_seq
+namespace cuda_parallel
 {
-
-	void create_pixel_precalculation(pixel_precalculation_memory* precalculation_xy, unsigned int old_width, unsigned int new_width, const unsigned old_height, const unsigned new_height);
+	
+	void create_pixel_precalculation(pixel_precalculation_memory *precalculation_xy, unsigned int old_width, unsigned int new_width, const unsigned old_height, const unsigned new_height);
 
 	void fill_image_to_scale(png_user_struct* image_to_scale, png_user_struct* source_image, pixel_precalculation* d_x_pixel_precalculation_ptr, pixel_precalculation* d_y_pixel_precalculation_ptr);
 
@@ -29,28 +29,28 @@ namespace cuda_seq
 		cudaFree(precalculation_xy.allocated_gpu_data);
 	}
 
-	void create_pixel_precalculation(pixel_precalculation_memory* precalculation_xy,
-		const unsigned int old_width, const unsigned int new_width, const unsigned old_height, const unsigned new_height)
+	void create_pixel_precalculation(pixel_precalculation_memory *precalculation_xy,
+	                                 const unsigned int old_width, const unsigned int new_width, const unsigned old_height, const unsigned new_height)
 	{
 		auto needed_memory_in_bytes = sizeof(pixel_precalculation) * new_width + sizeof(pixel_precalculation) * new_height;
-
+		
 		auto offset_to_y_precalculation_data = new_width;
 
 		pixel_precalculation* d_memory_on_gpu_p;
-
+		
 		cudaMalloc(reinterpret_cast<void**>(&d_memory_on_gpu_p), needed_memory_in_bytes);
 		precalculation_xy->allocated_gpu_data = d_memory_on_gpu_p;
 		precalculation_xy->x = d_memory_on_gpu_p;
 		precalculation_xy->y = d_memory_on_gpu_p + offset_to_y_precalculation_data;
 
-
+		
 		//old_size - 1, the last source pixel is (old_size - 1)
 		const auto pixel_weight_increment_x = (1.0F / static_cast<float>(new_width)) * static_cast<float>(old_width - 1);
 		const auto pixel_weight_increment_y = (1.0F / static_cast<float>(new_height)) * static_cast<float>(old_height - 1);
-
+		
 		dim3 blockSize_x(32);
 		dim3 blockSize_y(32);
-
+		
 		auto bx = (new_width + blockSize_x.x - 1) / blockSize_x.x;
 		auto by = (new_height + blockSize_x.x - 1) / blockSize_x.x;
 
@@ -72,7 +72,7 @@ namespace cuda_seq
 		auto needed_memory_in_bytes = dimensions_size_in_bytes + source_png_size_in_bytes + image_to_scale_size_in_bytes;
 
 		_int8* allocated_memory_on_gpu_p;
-
+		
 		cudaMalloc(reinterpret_cast<void**>(&allocated_memory_on_gpu_p), needed_memory_in_bytes);
 
 		fill_params hd_params;
@@ -83,12 +83,12 @@ namespace cuda_seq
 		hd_params.source_bytes_sequential_p = reinterpret_cast<png_bytep>(allocated_memory_on_gpu_p + dimensions_size_in_bytes);
 		hd_params.image_to_scale_bytes_sequential_p = reinterpret_cast<png_bytep>(allocated_memory_on_gpu_p + dimensions_size_in_bytes + source_png_size_in_bytes);
 
-		//pp_array that contains the source image needs to be flattened for fast memory allocation on gpu
+		//the pp_array that contains the source image needs to be flattened for fast memory allocation on gpu
 		png_bytep png_source_bytes_p = png_util_create_flat_bytes_p_from_row_pp(source_image->png_rows, source_image->image_info.width, source_image->image_info.height, source_png_size_in_bytes);
 
 		cudaMemcpy(hd_params.source_bytes_sequential_p, png_source_bytes_p, source_png_size_in_bytes, cudaMemcpyHostToDevice);
 
-		
+
 		dimensions dimensions_inf;
 		dimensions_inf.image_to_scale_width = image_to_scale->image_info.width;
 		dimensions_inf.image_to_scale_height = image_to_scale->image_info.height;
@@ -110,5 +110,4 @@ namespace cuda_seq
 
 		cudaFree(allocated_memory_on_gpu_p);
 	}
-
 }

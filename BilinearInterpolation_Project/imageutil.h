@@ -1,14 +1,7 @@
-//
-// Created by Sebastian on 28.11.2019.
-//
-
 #ifndef LAB1_1_IMAGEUTIL_H
 #define LAB1_1_IMAGEUTIL_H
 
-extern "C"{
 #include <png.h>
-}
-
 
 typedef struct image_inf {
     png_uint_32 width;
@@ -29,33 +22,19 @@ typedef struct img {
     image_info image_info;
 } png_user_struct;
 
-typedef struct pix {
-    unsigned int x;
-    unsigned int y;
-} Pixel;
-
-typedef struct precal {
-    unsigned int frontPixel;
-    unsigned int rearPixel;
-    float frontWeight;
-    float rearWeight;
-} PixelPrecalculation;
-
-
 enum class struct_type {
-    READ, WRITE
+    read, write
 };
+
+
+void write_image(png_user_struct* image, const char* file_name);
+
+void png_user_struct_free(png_user_struct* img, struct_type type);
 
 png_user_struct* get_image(const char *fileName);
 
-void write_image(png_user_struct *image, const char *file_name);
-
-unsigned int get_pixel_count(image_info image_resolution);
-
-void set_image_info_from_png(png_user_struct *image);
-
 png_user_struct* create_image_to_scale(png_user_struct* src, double scaling_factor);
 
-void png_user_struct_free(png_user_struct* img, struct_type type);
+png_bytep png_util_create_flat_bytes_p_from_row_pp(png_bytepp png_rows, png_uint_32 width, png_uint_32 height, png_uint_32 png_bytes_size);
 
 #endif //LAB1_1_IMAGEUTIL_H

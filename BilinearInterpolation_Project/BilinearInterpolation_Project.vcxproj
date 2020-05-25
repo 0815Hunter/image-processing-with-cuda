@@ -83,17 +83,26 @@
   <ItemGroup>
     <ClInclude Include="bilinearFilter.h" />
     <ClInclude Include="bilinear_filter_cuda.cuh" />
+    <ClInclude Include="bilinear_filter_cuda_streams.cuh" />
+    <ClInclude Include="common_structs.h" />
+    <ClInclude Include="cuda_includes.h" />
+    <ClInclude Include="cuda_kernels.cuh" />
     <ClInclude Include="imageutil.h" />
     <ClInclude Include="nearestNeighbour.h" />
+    <ClInclude Include="Stopwatch.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bilinearFilter.cpp" />
     <ClCompile Include="imageutil.cpp" />
-    <ClCompile Include="kernel.cu" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="nearestNeighbour.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="bilinear_filter_cuda.cu" />
+    <CudaCompile Include="bilinear_filter_cuda_streams.cu">
+      <GPUDebugInfo Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</GPUDebugInfo>
+    </CudaCompile>
+    <CudaCompile Include="cuda_kernels.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
