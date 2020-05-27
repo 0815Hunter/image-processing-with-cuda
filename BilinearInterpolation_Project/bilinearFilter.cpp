@@ -1,8 +1,8 @@
 #include <cstdlib>
 
-#include "imageutil.h"
 
-#include "common_structs.h"
+#include "common_structs.cuh"
+#include "imageutil.h"
 
 namespace seq
 {
@@ -65,13 +65,13 @@ namespace seq
 			const auto rear_pixel = source_image_pixel_for_front_pixel_x + 1;
 
 
-			pixel_precalculation_for_x_rows[x].frontPixel = source_image_pixel_for_front_pixel_x;
-			pixel_precalculation_for_x_rows[x].rearPixel = rear_pixel;
+			pixel_precalculation_for_x_rows[x].front_pixel = source_image_pixel_for_front_pixel_x;
+			pixel_precalculation_for_x_rows[x].rear_pixel = rear_pixel;
 
 			const auto weight = current_pixel_weight - (float)source_image_pixel_for_front_pixel_x;
 
-			pixel_precalculation_for_x_rows[x].frontWeight = 1 - weight;
-			pixel_precalculation_for_x_rows[x].rearWeight = weight;
+			pixel_precalculation_for_x_rows[x].front_weight = 1 - weight;
+			pixel_precalculation_for_x_rows[x].rear_weight = weight;
 
 			current_pixel_weight += real_pixel_weight_increment;
 		}
@@ -92,17 +92,17 @@ namespace seq
 	{
 		for (png_uint_32 y = 0; y < image_to_scale->image_info.height / 2; y++)
 		{
-			auto y_pixel_front = y_pixel_precalculation_ptr[y].frontPixel;
-			auto y_pixel_rear = y_pixel_precalculation_ptr[y].rearPixel;
-			auto y_front_weight = y_pixel_precalculation_ptr[y].frontWeight;
-			auto y_rear_weight = y_pixel_precalculation_ptr[y].rearWeight;
+			auto y_pixel_front = y_pixel_precalculation_ptr[y].front_pixel;
+			auto y_pixel_rear = y_pixel_precalculation_ptr[y].rear_pixel;
+			auto y_front_weight = y_pixel_precalculation_ptr[y].front_weight;
+			auto y_rear_weight = y_pixel_precalculation_ptr[y].rear_weight;
 
 			for (png_uint_32 x = 0; x < image_to_scale->image_info.width; x++)
 			{
-				auto x_pixel_front = x_pixel_precalculation_ptr[x].frontPixel;
-				auto x_pixel_rear = x_pixel_precalculation_ptr[x].rearPixel;
-				auto x_front_weight = x_pixel_precalculation_ptr[x].frontWeight;
-				auto x_rear_weight = x_pixel_precalculation_ptr[x].rearWeight;
+				auto x_pixel_front = x_pixel_precalculation_ptr[x].front_pixel;
+				auto x_pixel_rear = x_pixel_precalculation_ptr[x].rear_pixel;
+				auto x_front_weight = x_pixel_precalculation_ptr[x].front_weight;
+				auto x_rear_weight = x_pixel_precalculation_ptr[x].rear_weight;
 
 				png_byte point_00_01_value = source_image->png_rows[y_pixel_front][x_pixel_front] * x_front_weight + source_image->png_rows[y_pixel_front][x_pixel_rear] * x_rear_weight;
 				png_byte point_10_11_value = source_image->png_rows[y_pixel_rear][x_pixel_front] * x_front_weight + source_image->png_rows[y_pixel_rear][x_pixel_rear] * x_rear_weight;
@@ -118,14 +118,14 @@ namespace seq
 	{
 		for (png_uint_32 y = image_to_scale->image_info.height / 2; y < image_to_scale->image_info.height; y++)
 		{
-			auto y_pixel_front = y_pixel_precalculation_ptr[y].frontPixel;
+			auto y_pixel_front = y_pixel_precalculation_ptr[y].front_pixel;
 
 			for (png_uint_32 x = 0; x < image_to_scale->image_info.width; x++)
 			{
-				auto x_pixel_front = x_pixel_precalculation_ptr[x].frontPixel;
-				auto x_pixel_rear = x_pixel_precalculation_ptr[x].rearPixel;
-				auto x_front_weight = x_pixel_precalculation_ptr[x].frontWeight;
-				auto x_rear_weight = x_pixel_precalculation_ptr[x].rearWeight;
+				auto x_pixel_front = x_pixel_precalculation_ptr[x].front_pixel;
+				auto x_pixel_rear = x_pixel_precalculation_ptr[x].rear_pixel;
+				auto x_front_weight = x_pixel_precalculation_ptr[x].front_weight;
+				auto x_rear_weight = x_pixel_precalculation_ptr[x].rear_weight;
 
 				png_byte pixel_p_value;
 				if (x_front_weight > x_rear_weight)

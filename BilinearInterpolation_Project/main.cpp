@@ -25,10 +25,10 @@ int main() {
 
     const double scaling_factor = 3;
 
-    png_user_struct* scaled_image_ptr = scale_image(source_image_ptr, scaling_factor, scaling_strategy::cuda_seq_kernel);
+    png_user_struct* scaled_image_ptr = scale_image(source_image_ptr, scaling_factor, scaling_strategy::cuda_parallel_kernel);
     std::cout << sw.ElapsedMilliseconds() << std::endl;
 
-    write_image(scaled_image_ptr, "czp_scaled.png");
+    //write_image(scaled_image_ptr, "czp_scaled.png");
 	
     png_user_struct_free(source_image_ptr, struct_type::read);
     png_user_struct_free(scaled_image_ptr, struct_type::write);
@@ -55,7 +55,7 @@ png_user_struct* scale_image(png_user_struct* src_image_ptr, const double scalin
         cuda_seq::scale_bilinear(src_image_ptr, image_to_scale_ptr);
     	break;
     case scaling_strategy::cuda_parallel_kernel:
-        cuda_parallel::scale_bilinear(src_image_ptr, image_to_scale_ptr);
+        cuda_streams_example::scale_bilinear(src_image_ptr, image_to_scale_ptr);
     	break;
     default: ;
     }

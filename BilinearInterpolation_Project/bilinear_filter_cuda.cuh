@@ -1,6 +1,7 @@
 #ifndef BILINEAR_FILTER_CUDA_CUH
 #define BILINEAR_FILTER_CUDA_CUH
 
+#include "common_structs.cuh"
 #include "imageutil.h"
 
 namespace cuda_seq

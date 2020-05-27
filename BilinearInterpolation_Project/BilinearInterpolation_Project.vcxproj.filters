@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CudaCompile Include="bilinear_filter_cuda.cu" />
+    <CudaCompile Include="bilinear_filter_cuda_streams.cu" />
+    <CudaCompile Include="cuda_kernels.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="bilinearFilter.cpp" />
+    <ClCompile Include="imageutil.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="nearestNeighbour.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="bilinearFilter.h" />
+    <ClInclude Include="bilinear_filter_cuda.cuh" />
+    <ClInclude Include="bilinear_filter_cuda_streams.cuh" />
+    <ClInclude Include="cuda_includes.h" />
+    <ClInclude Include="imageutil.h" />
+    <ClInclude Include="nearestNeighbour.h" />
+    <ClInclude Include="Stopwatch.h" />
+    <ClInclude Include="common_structs.cuh" />
+    <ClInclude Include="cuda_kernels.cuh" />
+  </ItemGroup>
+</Project>
