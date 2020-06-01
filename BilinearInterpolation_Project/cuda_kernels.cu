@@ -7,7 +7,7 @@ __device__ void apply_bilinear_filter(d_scale_params params, unsigned x, unsigne
 
 __device__ void apply_nearest_neighbor(d_scale_params params, unsigned x, unsigned y);
 
-__global__ void pixel_precalculation_kernel(pixel_precalculation* precalculation, const float pixel_weight_increment, unsigned int N)
+__global__ void pixel_precalculation_kernel(pixel_precalculation* precalculation, const double pixel_weight_increment, unsigned int N)
 {
 	auto i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -24,10 +24,30 @@ __global__ void pixel_precalculation_kernel(pixel_precalculation* precalculation
 	precalculation[i].front_pixel = source_image_pixel_for_front_pixel_x;
 	precalculation[i].rear_pixel = rear_pixel;
 
-	const auto weight = current_pixel_weight - static_cast<float>(source_image_pixel_for_front_pixel_x);
+	const auto weight = current_pixel_weight - static_cast<double>(source_image_pixel_for_front_pixel_x);
 
 	precalculation[i].front_weight = 1 - weight;
 	precalculation[i].rear_weight = weight;
+}
+
+__global__ void parallel_tasks_bilinear_nn(d_scale_params f_params)
+{
+	auto x = blockIdx.x * blockDim.x + threadIdx.x;
+	auto y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	if ((x >= f_params.dimensions_info_p->result_image_width) || (y >= f_params.dimensions_info_p->result_image_height))
+	{
+		return;
+	}
+
+	if (y < f_params.dimensions_info_p->result_image_height / 2)
+	{
+		apply_bilinear_filter(f_params, x, y);
+	}
+	else
+	{
+		apply_nearest_neighbor(f_params, x, y);
+	}
 }
 
 __device__ unsigned int block_counter = 0;
@@ -37,12 +57,12 @@ __global__ void parallel_tasks_bilinear_nn_sobel(d_scale_params f_params, d_sobe
 	auto x = blockIdx.x * blockDim.x + threadIdx.x;
 	auto y = blockIdx.y * blockDim.y + threadIdx.y;
 
-	if ((x >= f_params.dimensions_info_p->image_to_scale_width) || (y >= f_params.dimensions_info_p->image_to_scale_height))
+	if ((x >= f_params.dimensions_info_p->result_image_width) || (y >= f_params.dimensions_info_p->result_image_height))
 	{
 		return;
 	}
 
-	if (y < f_params.dimensions_info_p->image_to_scale_height / 2)
+	if (y < f_params.dimensions_info_p->result_image_height / 2)
 	{
 		apply_bilinear_filter(f_params, x, y);
 	}
@@ -50,46 +70,29 @@ __global__ void parallel_tasks_bilinear_nn_sobel(d_scale_params f_params, d_sobe
 	{
 		apply_nearest_neighbor(f_params, x, y);
 	}
+
 	
-	__threadfence();
-	__syncthreads();
+	__threadfence(); // make sure the data processed by the thread is written to global memory
+	__syncthreads(); // every thread needs to be done before we can report that the block is done
+
 	
+	//fist thread of every block reports that the block is done
 	if(threadIdx.x == 0 && threadIdx.y == 0)
 	{
 		auto grid_count = (gridDim.x * gridDim.y);
-		unsigned int doneGrids = atomicInc(&block_counter, grid_count);
+		unsigned int done_grids = atomicInc(&block_counter, grid_count);
 
-		if(doneGrids == grid_count - 1)
+		if(done_grids == grid_count - 1) // last done block starts the child kernel
 		{
-			dim3 blockSize(32, 32);
+			dim3 block_size(32, 32);
 
-			auto bx = (f_params.dimensions_info_p->image_to_scale_width + blockSize.x - 1) / blockSize.x;
+			auto bx = (f_params.dimensions_info_p->result_image_width * 16 + block_size.x - 1) / block_size.x;
 
-			auto by = (f_params.dimensions_info_p->image_to_scale_height + blockSize.y - 1) / blockSize.y;
+			auto by = (f_params.dimensions_info_p->result_image_height + block_size.y - 1) / block_size.y;
 
-			auto gridSize = dim3(bx, by);
-			apply_sobel_filter<<<gridSize, blockSize>>>(s_params);
+			auto grid_size = dim3(bx, by);
+			sobel_cooperative_groups_tile16_8::apply_sobel_filter<<<grid_size, block_size>>>(s_params);
 		}
-	}
-}
-
-__global__ void parallel_tasks_bilinear_nn(d_scale_params f_params)
-{
-	auto x = blockIdx.x * blockDim.x + threadIdx.x;
-	auto y = blockIdx.y * blockDim.y + threadIdx.y;
-
-	if ((x >= f_params.dimensions_info_p->image_to_scale_width) || (y >= f_params.dimensions_info_p->image_to_scale_height))
-	{
-		return;
-	}
-
-	if (y < f_params.dimensions_info_p->image_to_scale_height / 2)
-	{
-		apply_bilinear_filter(f_params, x, y);
-	}
-	else
-	{
-		apply_nearest_neighbor(f_params, x, y);
 	}
 }
 
@@ -116,14 +119,15 @@ __device__ void apply_bilinear_filter(d_scale_params params, unsigned x, unsigne
 
 	auto* source_bytes = params.source_bytes_sequential_p;
 
-	png_byte point_00_01_value = source_bytes[p_00_index] * x_front_weight + source_bytes[p_01_index] * x_rear_weight;
-	png_byte point_10_11_value = source_bytes[p_10_index] * x_front_weight + source_bytes[p_11_index] * x_rear_weight;
+	double point_00_01_value = static_cast<double>(source_bytes[p_00_index]) * x_front_weight + static_cast<double>(source_bytes[p_01_index]) * x_rear_weight;
+	double point_10_11_value = static_cast<double>(source_bytes[p_10_index]) * x_front_weight + static_cast<double>(source_bytes[p_11_index]) * x_rear_weight;
 
-	png_byte pixel_p_value = point_00_01_value * y_front_weight + point_10_11_value * y_rear_weight;
+	
+	png_byte pixel_p_value = static_cast<png_byte>(lrint(point_00_01_value * y_front_weight + point_10_11_value * y_rear_weight));
 
-	auto i = y * params.dimensions_info_p->image_to_scale_width + x;
+	auto i = y * params.dimensions_info_p->result_image_width + x;
 
-	params.image_to_scale_bytes_sequential_p[i] = pixel_p_value;
+	params.result_image_bytes_sequential_p[i] = pixel_p_value;
 
 }
 
@@ -152,7 +156,7 @@ __device__ void apply_nearest_neighbor(d_scale_params params, unsigned x, unsign
 		pixel_p_value = source_bytes[p_01_index];
 	}
 
-	auto index_to_output_pixel = y * params.dimensions_info_p->image_to_scale_width + x;
+	auto index_to_output_pixel = y * params.dimensions_info_p->result_image_width + x;
 
-	params.image_to_scale_bytes_sequential_p[index_to_output_pixel] = pixel_p_value;
+	params.result_image_bytes_sequential_p[index_to_output_pixel] = pixel_p_value;
 }

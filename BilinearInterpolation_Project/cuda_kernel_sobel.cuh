@@ -5,4 +5,20 @@
 
 __global__ void apply_sobel_filter(d_sobel_params params);
 
+namespace sobel_framed_blocks
+{
+	__global__ void apply_sobel_filter_framed_blocks(d_sobel_params params);
+}
+
+namespace sobel_cooperative_groups_tile2
+{
+	__global__ void apply_sobel_filter(d_sobel_params params);
+}
+
+
+namespace sobel_cooperative_groups_tile16_8
+{
+	__global__ void apply_sobel_filter(d_sobel_params params);
+}
+
 #endif // SOBEL_KERNEL_CUH

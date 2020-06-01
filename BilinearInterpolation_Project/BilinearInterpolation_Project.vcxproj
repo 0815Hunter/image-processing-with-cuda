@@ -13,6 +13,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{DA443D00-A2A7-48E7-B957-BB36FC375DFC}</ProjectGuid>
     <RootNamespace>BilinearInterpolation_Project</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -49,6 +50,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;WIN64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Users\sebas\Source\Libs\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>Default</LanguageStandard>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -75,6 +77,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;WIN64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Users\sebas\Source\Libs\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>Default</LanguageStandard>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -97,13 +100,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="bilinearFilter.h" />
-    <ClInclude Include="bilinear_filter_cuda.cuh" />
-    <ClInclude Include="bilinear_filter_cuda_streams.cuh" />
+    <ClInclude Include="cuda_scale_image.cuh" />
+    <ClInclude Include="cuda_scale_pixel_precalculation.cuh" />
+    <ClInclude Include="cuda_streams_pixel_precalculation.cuh" />
+    <ClInclude Include="cuda_streams_scale_image.cuh" />
     <ClInclude Include="common_structs.cuh" />
     <ClInclude Include="cuda_includes.h" />
     <ClInclude Include="cuda_kernels.cuh" />
     <ClInclude Include="imageutil.h" />
-    <ClInclude Include="nearestNeighbour.h" />
     <ClInclude Include="cuda_kernel_sobel.cuh" />
     <ClInclude Include="Stopwatch.h" />
   </ItemGroup>
@@ -111,11 +115,12 @@
     <ClCompile Include="bilinearFilter.cpp" />
     <ClCompile Include="imageutil.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="nearestNeighbour.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <CudaCompile Include="bilinear_filter_cuda.cu" />
-    <CudaCompile Include="bilinear_filter_cuda_streams.cu">
+    <CudaCompile Include="cuda_scale_image.cu" />
+    <CudaCompile Include="cuda_scale_pixel_precalculation.cu" />
+    <CudaCompile Include="cuda_streams_pixel_precalculation.cu" />
+    <CudaCompile Include="cuda_streams_scale_image.cu">
       <GPUDebugInfo Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</GPUDebugInfo>
     </CudaCompile>
     <CudaCompile Include="cuda_kernels.cu" />

@@ -37,9 +37,9 @@ png_user_struct *get_image(const char *fileName) {
 
 }
 
-png_user_struct *create_image_to_scale(png_user_struct *src, double scaling_factor)
+png_user_struct *create_result_image_container(png_user_struct *src, double scaling_factor)
 {
-	auto* image_to_scale =  static_cast<png_user_struct*>(malloc(sizeof(png_user_struct)));
+	auto* result_image =  static_cast<png_user_struct*>(malloc(sizeof(png_user_struct)));
 
     png_structp png_write_struct = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
 
@@ -62,28 +62,28 @@ png_user_struct *create_image_to_scale(png_user_struct *src, double scaling_fact
 
     png_set_IHDR(png_write_struct, png_info_struct, width, height, bit_depth, color_type, interlace_method, compression_method, filter_method);
 
-    image_to_scale->png_ptr = png_write_struct;
-    image_to_scale->png_info_ptr = png_info_struct;
-    set_image_info_from_png(image_to_scale);
+    result_image->png_ptr = png_write_struct;
+    result_image->png_info_ptr = png_info_struct;
+    set_image_info_from_png(result_image);
 
-    auto* row_pointers = static_cast<png_bytepp>(png_malloc(image_to_scale->png_ptr, image_to_scale->image_info.height * sizeof(png_bytep)));
+    auto* row_pointers = static_cast<png_bytepp>(png_malloc(result_image->png_ptr, result_image->image_info.height * sizeof(png_bytep)));
 	
-    png_set_rows(image_to_scale->png_ptr, image_to_scale->png_info_ptr, row_pointers);
-    set_image_row_info(image_to_scale);
+    png_set_rows(result_image->png_ptr, result_image->png_info_ptr, row_pointers);
+    set_image_row_info(result_image);
 
 	//pixel size is 1 (black white pixels)
-    auto image_to_scale_size_in_bytes = sizeof(png_byte) * image_to_scale->image_info.width * image_to_scale->image_info.height;
+    auto image_to_scale_size_in_bytes = sizeof(png_byte) * result_image->image_info.width * result_image->image_info.height;
 	
     //allocate and associate this memory with png_malloc to free it later with the png
-    auto* png_scaled_bytes_sequential_p = static_cast<png_bytep>(png_malloc(image_to_scale->png_ptr, image_to_scale_size_in_bytes));
+    auto* png_scaled_bytes_sequential_p = static_cast<png_bytep>(png_malloc(result_image->png_ptr, image_to_scale_size_in_bytes));
 
-    for (png_uint_32 y = 0; y < image_to_scale->image_info.height; y++)
+    for (png_uint_32 y = 0; y < result_image->image_info.height; y++)
     {
-        image_to_scale->png_rows[y] = &png_scaled_bytes_sequential_p[y * image_to_scale->image_info.width];
+        result_image->png_rows[y] = &png_scaled_bytes_sequential_p[y * result_image->image_info.width];
     }
    
 
-    return image_to_scale;
+    return result_image;
 }
 
 void set_image_row_info(png_user_struct* image)
@@ -149,11 +149,10 @@ void png_user_struct_free(png_user_struct* img, const struct_type type)
 
 png_bytep png_util_create_flat_bytes_p_from_row_pp(png_bytepp png_rows, png_uint_32 width, png_uint_32 height, png_uint_32 png_bytes_size)
 {
-    png_bytep png_bytes_p = static_cast<png_bytep>(malloc(png_bytes_size));
+	auto* png_bytes_p = static_cast<png_bytep>(malloc(png_bytes_size));
 
-    png_bytep png_bytes_p_it = png_bytes_p;
+	auto* png_bytes_p_it = png_bytes_p;
 
-    //h_png_source_image_bytepp: liegen die bytes nicht alle ab h_png_source_image_bytepp[0]
     for (png_uint_32 y = 0; y < height; y++)
     {
         for (png_uint_32 x = 0; x < width; x++)

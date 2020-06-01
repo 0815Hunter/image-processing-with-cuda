@@ -4,7 +4,7 @@
 #include "cuda_includes.h"
 #include "common_structs.cuh"
 
-__global__ void pixel_precalculation_kernel(pixel_precalculation* precalculation, const float pixel_weight_increment, unsigned int N);
+__global__ void pixel_precalculation_kernel(pixel_precalculation* precalculation, const double pixel_weight_increment, unsigned int N);
 
 
 __global__ void parallel_tasks_bilinear_nn(d_scale_params f_params);

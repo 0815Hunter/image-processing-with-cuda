@@ -8,15 +8,15 @@
 typedef struct pixel_precalculation_def {
 	unsigned int front_pixel;
 	unsigned int rear_pixel;
-	float front_weight;
-	float rear_weight;
+	double front_weight;
+	double rear_weight;
 } pixel_precalculation;
 
 typedef struct dimensions_info_def
 {
 	png_uint_32 source_image_width;
-	png_uint_32 image_to_scale_width;
-	png_uint_32 image_to_scale_height;
+	png_uint_32 result_image_width;
+	png_uint_32 result_image_height;
 }dimensions_info;
 
 typedef struct d_scale_params_def
@@ -25,7 +25,7 @@ typedef struct d_scale_params_def
 	pixel_precalculation* y_precalculation_p;
 	dimensions_info* dimensions_info_p;
 	png_bytep source_bytes_sequential_p;
-	volatile png_bytep image_to_scale_bytes_sequential_p;
+	volatile png_bytep result_image_bytes_sequential_p;
 }d_scale_params;
 
 typedef struct d_sobel_params_def

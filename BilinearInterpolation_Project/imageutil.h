@@ -33,7 +33,7 @@ void png_user_struct_free(png_user_struct* img, struct_type type);
 
 png_user_struct* get_image(const char *fileName);
 
-png_user_struct* create_image_to_scale(png_user_struct* src, double scaling_factor);
+png_user_struct* create_result_image_container(png_user_struct* src, double scaling_factor);
 
 png_bytep png_util_create_flat_bytes_p_from_row_pp(png_bytepp png_rows, png_uint_32 width, png_uint_32 height, png_uint_32 png_bytes_size);
 

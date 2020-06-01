@@ -1,25 +1,29 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <CudaCompile Include="bilinear_filter_cuda.cu" />
-    <CudaCompile Include="bilinear_filter_cuda_streams.cu" />
     <CudaCompile Include="cuda_kernels.cu" />
+    <CudaCompile Include="cuda_kernel_sobel.cu" />
+    <CudaCompile Include="cuda_streams_scale_image.cu" />
+    <CudaCompile Include="cuda_scale_image.cu" />
+    <CudaCompile Include="cuda_streams_pixel_precalculation.cu" />
+    <CudaCompile Include="cuda_scale_pixel_precalculation.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bilinearFilter.cpp" />
     <ClCompile Include="imageutil.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="nearestNeighbour.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bilinearFilter.h" />
-    <ClInclude Include="bilinear_filter_cuda.cuh" />
-    <ClInclude Include="bilinear_filter_cuda_streams.cuh" />
     <ClInclude Include="cuda_includes.h" />
     <ClInclude Include="imageutil.h" />
-    <ClInclude Include="nearestNeighbour.h" />
     <ClInclude Include="Stopwatch.h" />
     <ClInclude Include="common_structs.cuh" />
     <ClInclude Include="cuda_kernels.cuh" />
+    <ClInclude Include="cuda_kernel_sobel.cuh" />
+    <ClInclude Include="cuda_streams_scale_image.cuh" />
+    <ClInclude Include="cuda_scale_image.cuh" />
+    <ClInclude Include="cuda_streams_pixel_precalculation.cuh" />
+    <ClInclude Include="cuda_scale_pixel_precalculation.cuh" />
   </ItemGroup>
 </Project>
