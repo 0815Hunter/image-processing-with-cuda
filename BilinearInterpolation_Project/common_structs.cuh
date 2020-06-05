@@ -5,6 +5,10 @@
 
 #include "cuda_includes.h"
 
+enum class kernel_mode {
+	bilinear_nn, bilinear_nn_sobel, branch_bilinear_nn_dynamic_sobel
+};
+
 typedef struct pixel_precalculation_def {
 	unsigned int front_pixel;
 	unsigned int rear_pixel;

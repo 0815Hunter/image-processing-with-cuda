@@ -57,33 +57,32 @@ namespace seq
 	pixel_precalculation* create_pixel_precalculation(const unsigned int old_pixel_array_size,
 		const unsigned int new_pixel_array_size)
 	{
-		auto* pixel_precalculation_for_x_rows = static_cast<pixel_precalculation*>(malloc(
+		auto* precalculation = static_cast<pixel_precalculation*>(malloc(
 			sizeof(pixel_precalculation) * new_pixel_array_size));
 
 
 		//old_pixel_array_size - 1, the last pixel is (old_pixel_array_size - 1)
-		auto real_pixel_weight_increment = (1.0 / static_cast<double>(new_pixel_array_size)) * static_cast<double>(old_pixel_array_size - 1);
-		double current_pixel_weight = 0;
+		auto weight_increment = (1.0 / static_cast<double>(new_pixel_array_size)) * static_cast<double>(old_pixel_array_size - 1);
+		
+		double current_weight = 0;
 
 		//precalculate weights and front pixel location
-		for (unsigned int x = 0; x < new_pixel_array_size; x++)
+		for (unsigned int i = 0; i < new_pixel_array_size; i++)
 		{
-			const auto source_image_pixel_for_front_pixel_x = static_cast<unsigned int>(current_pixel_weight);
-			const auto rear_pixel = source_image_pixel_for_front_pixel_x + 1;
+			const auto source_image_front_pixel = static_cast<unsigned int>(current_weight);
 
+			precalculation[i].front_pixel = source_image_front_pixel;
+			precalculation[i].rear_pixel = source_image_front_pixel + 1;
 
-			pixel_precalculation_for_x_rows[x].front_pixel = source_image_pixel_for_front_pixel_x;
-			pixel_precalculation_for_x_rows[x].rear_pixel = rear_pixel;
+			const auto weight = current_weight - static_cast<double>(source_image_front_pixel);
 
-			const auto weight = current_pixel_weight - static_cast<float>(source_image_pixel_for_front_pixel_x);
+			precalculation[i].front_weight = 1.0 - weight;
+			precalculation[i].rear_weight = weight;
 
-			pixel_precalculation_for_x_rows[x].front_weight = 1.0 - weight;
-			pixel_precalculation_for_x_rows[x].rear_weight = weight;
-
-			current_pixel_weight += real_pixel_weight_increment;
+			current_weight += weight_increment;
 		}
 
-		return pixel_precalculation_for_x_rows;
+		return precalculation;
 	}
 
 	void scale_bilinear_first_half(png_user_struct* result_image, png_user_struct* source_image, pixel_precalculation* x_pixel_precalculation_ptr, pixel_precalculation* y_pixel_precalculation_ptr)
@@ -142,18 +141,18 @@ namespace seq
 
 	void apply_sobel(png_user_struct* result_image)
 	{
-		auto x_row_buffer_amount = (result_image->image_info.width - 2) * 2;
-		auto* two_row_buffer = static_cast<png_bytep>(malloc(sizeof(png_byte) * x_row_buffer_amount));
+		auto two_row_buffer_size = (result_image->image_info.width - 2) * 2;
+		auto* two_row_buffer = static_cast<png_bytep>(malloc(sizeof(png_byte) * two_row_buffer_size));
+		
 		unsigned current_two_row_buffer_index = 0;
 
-
-		auto x_row_buffer_half = (x_row_buffer_amount / 2);
-		auto current_buffer_end_index = x_row_buffer_amount;
-		for (png_uint_32 y_1 = 1; y_1 < result_image->image_info.height - 1; y_1++)
+		auto row_buffer_first_row = (two_row_buffer_size / 2);
+		auto current_buffer_end_index = two_row_buffer_size;
+		for (png_uint_32 y = 1; y < result_image->image_info.height - 1; y++)
 		{
-			for (png_uint_32 x_1 = 1; x_1 < result_image->image_info.width - 1; x_1++)
+			for (png_uint_32 x = 1; x < result_image->image_info.width - 1; x++)
 			{
-				png_byte xy_sobel_value = calculate_sobel_value(result_image, y_1, x_1);
+				png_byte xy_sobel_value = calculate_sobel_value(result_image, y, x);
 
 				two_row_buffer[current_two_row_buffer_index] = xy_sobel_value;
 
@@ -162,45 +161,45 @@ namespace seq
 
 			if (current_two_row_buffer_index == current_buffer_end_index)
 			{
-				if (current_buffer_end_index == x_row_buffer_amount)
+				if (current_buffer_end_index == two_row_buffer_size)
 				{
 					//copy from first half
 					for (unsigned x = 1, x_buf = 0; x < result_image->image_info.width - 1; x++, x_buf++)
 					{
-						result_image->png_rows[y_1 - 1][x] = two_row_buffer[x_buf];
+						result_image->png_rows[y - 1][x] = two_row_buffer[x_buf];
 					}
 					//write to first half
 					current_two_row_buffer_index = 0;
-					current_buffer_end_index = x_row_buffer_half;
+					current_buffer_end_index = row_buffer_first_row;
 				}
 				else
 				{
 					//copy from second half
-					for (unsigned x = 1, x_buf = x_row_buffer_half; x < result_image->image_info.width - 1; x++, x_buf++)
+					for (unsigned x = 1, buf_i = row_buffer_first_row; x < result_image->image_info.width - 1; x++, buf_i++)
 					{
-						result_image->png_rows[y_1 - 1][x] = two_row_buffer[x_buf];
+						result_image->png_rows[y - 1][x] = two_row_buffer[buf_i];
 					}
 					//write to second half
-					current_two_row_buffer_index = x_row_buffer_half;
-					current_buffer_end_index = x_row_buffer_amount;
+					current_two_row_buffer_index = row_buffer_first_row;
+					current_buffer_end_index = two_row_buffer_size;
 
 				}
 			}
 		}
 
-		auto y_1 = result_image->image_info.height - 2; // two y iterations left
-		if (current_two_row_buffer_index == x_row_buffer_amount)
+		auto last_row_to_fill = result_image->image_info.height - 2; // one y iteration left
+		if (current_two_row_buffer_index == two_row_buffer_size)
 		{
-			for (unsigned x = 1, x_buf1 = 0; x < result_image->image_info.width - 1; x++, x_buf1++)
+			for (unsigned x = 1, buf_i = 0; x < result_image->image_info.width - 2; x++, buf_i++)
 			{
-				result_image->png_rows[y_1][x] = two_row_buffer[x_buf1];
+				result_image->png_rows[last_row_to_fill][x] = two_row_buffer[buf_i];
 			}
 		}
 		else
 		{
-			for (unsigned x = 1, x_buf = x_row_buffer_half; x < result_image->image_info.width - 1; x++, x_buf++)
+			for (unsigned x = 1, buf_i = row_buffer_first_row; x < result_image->image_info.width - 2; x++, buf_i++)
 			{
-				result_image->png_rows[y_1][x] = two_row_buffer[x_buf];
+				result_image->png_rows[last_row_to_fill][x] = two_row_buffer[buf_i];
 			}
 		}
 
@@ -209,19 +208,19 @@ namespace seq
 
 		//add image frame
 
-		int y_rows[2] = { 0, result_image->image_info.height - 1 };
+		int first_and_last_col[2] = { 0, result_image->image_info.height - 1 };
 
-		for (auto y_row : y_rows)
+		for (auto y : first_and_last_col)
 		{
 			for(auto x = 0; x < result_image->image_info.width - 1; x++)
 			{
-				result_image->png_rows[y_row][x] = 255;
+				result_image->png_rows[y][x] = 255;
 			}
 		}
 
-		int x_rows[2] = { 0, result_image->image_info.width - 1 };
+		int first_and_last_row[2] = { 0, result_image->image_info.width - 1 };
 
-		for(auto x_row : x_rows)
+		for(auto x_row : first_and_last_row)
 		{
 			for(auto y = 1; y < result_image->image_info.height - 2; y++)
 			{

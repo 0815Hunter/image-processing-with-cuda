@@ -3,11 +3,11 @@
 #include "cuda_includes.h"
 #include "common_structs.cuh"
 
-__global__ void apply_sobel_filter(d_sobel_params params);
+__global__ void apply_sobel_filter(d_sobel_params params, unsigned y_offset, unsigned y_max);
 
 namespace sobel_framed_blocks
 {
-	__global__ void apply_sobel_filter_framed_blocks(d_sobel_params params);
+	__global__ void apply_sobel_filter(d_sobel_params params);
 }
 
 namespace sobel_cooperative_groups_tile2

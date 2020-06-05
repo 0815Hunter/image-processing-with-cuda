@@ -11,8 +11,8 @@ namespace cuda_streams_example
 	void create_pixel_precalculation(pixel_precalculation_memory* xy_precalculation,
 		unsigned old_height, unsigned new_height, unsigned old_width, unsigned new_width)
 	{
-		const auto x_pixel_weight_increment = (1.0F / static_cast<float>(new_width)) * static_cast<float>(old_width - 1);
-		const auto y_pixel_weight_increment = (1.0F / static_cast<float>(new_height)) * static_cast<float>(old_height - 1);
+		const auto x_pixel_weight_increment = (1.0 / static_cast<double>(new_width)) * static_cast<double>(old_width - 1);
+		const auto y_pixel_weight_increment = (1.0 / static_cast<double>(new_height)) * static_cast<double>(old_height - 1);
 
 		auto needed_memory_in_bytes_x = sizeof(pixel_precalculation) * new_width;
 		auto needed_memory_in_bytes_y = sizeof(pixel_precalculation) * new_height;
@@ -41,9 +41,8 @@ namespace cuda_streams_example
 		pixel_precalculation_kernel << < grid_size_x, block_size_x, 0, *x_precalculation_stream_p >> > (xy_precalculation->d_x, x_pixel_weight_increment, new_width);  // NOLINT(clang-diagnostic-unused-value)
 		pixel_precalculation_kernel << < grid_size_y, block_size_y, 0, *y_precalculation_stream_p >> > (xy_precalculation->d_y, y_pixel_weight_increment, new_height); // NOLINT(clang-diagnostic-unused-value)
 
-		cudaMemcpyAsync(xy_precalculation->h_x_pinned, xy_precalculation->d_x, needed_memory_in_bytes_x, cudaMemcpyDeviceToHost, *x_precalculation_stream_p);
-		cudaStreamSynchronize(*x_precalculation_stream_p);
-
+		//cudaMemcpyAsync(xy_precalculation->h_x_pinned, xy_precalculation->d_x, needed_memory_in_bytes_x, cudaMemcpyDeviceToHost, *x_precalculation_stream_p);
+		//cudaStreamSynchronize(*x_precalculation_stream_p);
 		//precalculation_xy->h_x_pinned now available
 
 	}

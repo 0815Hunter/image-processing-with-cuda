@@ -2,19 +2,20 @@
 
 __device__ void sobel(d_sobel_params params, unsigned xy_pos);
 
-__global__ void apply_sobel_filter(d_sobel_params params)
+__global__ void apply_sobel_filter(d_sobel_params params, unsigned y_offset, unsigned y_max)
 {
 	auto x = blockIdx.x * blockDim.x + threadIdx.x;
-	auto y = blockIdx.y * blockDim.y + threadIdx.y;
+	auto y = (blockIdx.y * blockDim.y + threadIdx.y) + y_offset;
 
-	if ((x > params.dimensions_inf_p->result_image_width - 1) || (y > params.dimensions_inf_p->result_image_height - 1))
+	if (x > params.dimensions_inf_p->result_image_width - 1 || y > y_max)
 	{
 		return;
 	}
 
 	auto xy_pos = y * params.dimensions_inf_p->result_image_width + x;
-	
-	if (x == 0 || y == 0 || (x == params.dimensions_inf_p->result_image_width - 1) || (y == params.dimensions_inf_p->result_image_height - 1))
+
+
+	if (x == 0 || y == 0 || x == params.dimensions_inf_p->result_image_width - 1 || y == params.dimensions_inf_p->result_image_height - 1)
 	{
 		params.result_bytes_sequential_p[xy_pos] = 255;
 		return;
@@ -25,19 +26,20 @@ __global__ void apply_sobel_filter(d_sobel_params params)
 
 namespace sobel_framed_blocks
 {
-	__global__ void apply_sobel_filter_framed_blocks(d_sobel_params params)
+	__global__ void apply_sobel_filter(d_sobel_params params)
 	{
 		auto x = blockIdx.x * blockDim.x + threadIdx.x;
 		auto y = blockIdx.y * blockDim.y + threadIdx.y;
 
-		if ((x > params.dimensions_inf_p->result_image_width - 1) || (y > params.dimensions_inf_p->result_image_height - 1))
+		if (x > params.dimensions_inf_p->result_image_width - 1 || y > params.dimensions_inf_p->result_image_height - 1)
 		{
 			return;
 		}
 
 		auto xy_pos = y * params.dimensions_inf_p->result_image_width + x;
 
-		if ((threadIdx.y == blockDim.y - 1 || threadIdx.y == 0) || (threadIdx.x == 0 || threadIdx.x == blockDim.x - 1))
+
+		if (x == 0 || y == 0 || x == params.dimensions_inf_p->result_image_width - 1 || y == params.dimensions_inf_p->result_image_height - 1)
 		{
 			params.result_bytes_sequential_p[xy_pos] = 255;
 			return;
@@ -214,10 +216,8 @@ namespace sobel_cooperative_groups_tile16_8
 
 		auto xy_pos = y * params.dimensions_inf_p->result_image_width + x;
 
-		// todo: do only once
 		if (x == 0 || y == 0 || x == params.dimensions_inf_p->result_image_width - 1 || y == params.dimensions_inf_p->result_image_height - 1)
 		{
-			params.result_bytes_sequential_p[xy_pos] = 255;
 			return;
 		}
 

@@ -20,8 +20,8 @@ namespace cuda_seq
 
 
 		//old_size - 1, the last source pixel is (old_size - 1)
-		const auto pixel_weight_increment_x = (1.0F / static_cast<float>(new_width)) * static_cast<float>(old_width - 1);
-		const auto pixel_weight_increment_y = (1.0F / static_cast<float>(new_height)) * static_cast<float>(old_height - 1);
+		const auto pixel_weight_increment_x = (1.0 / static_cast<double>(new_width)) * static_cast<double>(old_width - 1);
+		const auto pixel_weight_increment_y = (1.0 / static_cast<double>(new_height)) * static_cast<double>(old_height - 1);
 
 		dim3 blockSize_x(32);
 		dim3 blockSize_y(32);
