@@ -248,6 +248,7 @@ namespace sobel_cooperative_groups_tile16_8
 		
 		double x_sobel_value_squared = 0;
 		double y_sobel_value_squared = 0;
+		
 		thread_block_tile<8> tile8 = tiled_partition<8>(tile16);
 		
 		auto tile16_rank = tile16.thread_rank();

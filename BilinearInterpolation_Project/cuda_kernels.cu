@@ -3,6 +3,8 @@
 #include "cuda_kernel_sobel.cuh"
 #include "cuda_bilinear.cuh"
 #include "cuda_nearest_neighbor.cuh"
+
+
 __global__ void pixel_precalculation_kernel(pixel_precalculation* precalculation, const double pixel_weight_increment, unsigned int N)
 {
 	auto i = blockIdx.x * blockDim.x + threadIdx.x;

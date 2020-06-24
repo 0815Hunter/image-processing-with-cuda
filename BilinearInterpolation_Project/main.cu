@@ -28,11 +28,11 @@ void set_test_name(std::string& test_name, execution_strategy strategy, kernel_m
 
 
 int main() {
-    std::string file_name("czp.png");
+    std::string file_name("Kapelle.png");
 	
 	auto* source_image_ptr = get_image(file_name.data());
 	
-    const double scaling_factor = 2;
+    const double scaling_factor = 3;
 
     std::vector<execution_strategy> strategies;
     std::vector<kernel_mode> modes;

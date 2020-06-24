@@ -36,7 +36,7 @@ typedef struct d_sobel_params_def
 {
 	dimensions_info* dimensions_inf_p;
 	png_bytep source_bytes_sequential_p;
-	png_bytep result_bytes_sequential_p;
+	volatile png_bytep result_bytes_sequential_p;
 }d_sobel_params;
 
 typedef struct pixel_precalculation_memory_def
